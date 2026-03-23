@@ -119,7 +119,7 @@ const start = async () => {
     await connectDB()
 
     // 2. Start Listening
-    const PORT = 5001
+    const PORT = process.env.PORT || 5001
     server.on('error', (e) => {
       if (e.code === 'EADDRINUSE') {
         console.error(`❌ Port ${PORT} is busy. Kill the process or use another port.`)
