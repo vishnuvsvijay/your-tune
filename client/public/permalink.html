@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Your Tunes Link</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    body{margin:0;background:#0a0a0c;color:#fff;font-family:Inter,system-ui,Arial}
+    .wrap{max-width:760px;margin:0 auto;padding:40px}
+    .title{font-size:48px;font-weight:800;letter-spacing:-1px}
+    .box{margin-top:24px;background:#121214;border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:20px}
+    .row{display:flex;gap:10px;align-items:center}
+    .link{display:inline-block;background:#06b6d4;color:#000;padding:12px 16px;border-radius:12px;text-decoration:none;font-weight:700}
+    .sub{margin-top:12px;color:#a3a3a3;font-size:14px}
+    .copy{background:#222;padding:10px 14px;border-radius:10px;color:#fff;border:1px solid rgba(255,255,255,.1)}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="title">Your Tunes</div>
+    <div class="box">
+      <div class="row">
+        <a id="appLink" class="link" href="/library">Open Library</a>
+        <button id="copyBtn" class="copy">Copy Link</button>
+      </div>
+      <div class="sub">Share this permanent link to open your music library.</div>
+    </div>
+  </div>
+  <script>
+    const link = location.origin + '/library';
+    document.getElementById('appLink').href = link;
+    document.getElementById('copyBtn').addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(link); document.getElementById('copyBtn').textContent = 'Copied'; } catch {}
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+# Node modules
+node_modules/
+dist/
+.env
+.env.local
+
+# Uploads and temporary files
+server/uploads/
+server/test_*.js
+server/177*.js
+music_player_source.zip
+
+# OS files
+.DS_Store
+Thumbs.db

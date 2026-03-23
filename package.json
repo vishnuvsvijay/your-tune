@@ -1,0 +1,9 @@
+{
+  "name": "your-tune",
+  "private": true,
+  "scripts": {
+    "install-all": "npm install && cd client && npm install && cd ../server && npm install",
+    "client": "cd client && npm run dev",
+    "server": "cd server && npm run dev"
+  }
+}
