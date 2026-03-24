@@ -47,12 +47,20 @@ exports.streamProxy = async (req, res) => {
         res.setHeader('Access-Control-Allow-Origin', '*')
         res.setHeader('Cache-Control', 'public, max-age=3600')
         
-        // IMPORTANT: Set Content-Length if available to help browser show duration
-        if (streamInfo.content_length) {
-          res.setHeader('Content-Length', streamInfo.content_length)
+        // Handle Range Requests (Crucial for seeking and showing duration in many browsers)
+        if (req.headers.range && streamInfo.content_length) {
+          const parts = req.headers.range.replace(/bytes=/, "").split("-")
+          const start = parseInt(parts[0], 10)
+          const end = parts[1] ? parseInt(parts[1], 10) : streamInfo.content_length - 1
+          const chunksize = (end - start) + 1
+          
+          res.status(206)
+          res.setHeader('Content-Range', `bytes ${start}-${end}/${streamInfo.content_length}`)
+          res.setHeader('Content-Length', chunksize)
+        } else {
+          if (streamInfo.content_length) res.setHeader('Content-Length', streamInfo.content_length)
+          res.status(200)
         }
-        
-        res.status(200)
 
         // Stream from play-dl to response
         streamInfo.stream.pipe(res)

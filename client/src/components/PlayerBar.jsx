@@ -37,6 +37,7 @@ function PlayerBar() {
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const [volume, setVolume] = useState(0.8)
+  const [isLoading, setIsLoading] = useState(false)
 
   // Sync state with audio element
   useEffect(() => {
@@ -44,9 +45,25 @@ function PlayerBar() {
     if (!audio) return
 
     const handleLoadedMetadata = () => {
-      // Priority: 1. Native duration, 2. Song metadata duration
+      console.log("[Player] Metadata loaded. Duration:", audio.duration)
       const d = audio.duration || currentSong?.duration || 0
       setDuration(d)
+      setIsLoading(false)
+    }
+
+    const handleWaiting = () => {
+      console.warn("[Player] Waiting for data...")
+      setIsLoading(true)
+    }
+
+    const handleCanPlay = () => {
+      console.log("[Player] Can play now.")
+      setIsLoading(false)
+      if (playing) {
+        audio.play().catch(err => {
+          if (err.name !== 'AbortError') console.error("[Player] Play error:", err.message)
+        })
+      }
     }
 
     const handleTimeUpdate = () => {
@@ -63,26 +80,32 @@ function PlayerBar() {
     }
 
     const handleError = (e) => {
-      console.error("[Player] Audio Error:", e)
+      console.error("[Player] Audio Error Event:", e)
+      setIsLoading(false)
       // Auto-skip on error if it's a streaming error
       if (currentSong) {
         console.warn("[Player] Skipping problematic track...")
-        setTimeout(next, 1000)
+        setTimeout(next, 2000)
       }
     }
 
     audio.addEventListener('loadedmetadata', handleLoadedMetadata)
+    audio.addEventListener('waiting', handleWaiting)
+    audio.addEventListener('canplay', handleCanPlay)
     audio.addEventListener('timeupdate', handleTimeUpdate)
     audio.addEventListener('ended', handleEndedInternal)
     audio.addEventListener('error', handleError)
 
     return () => {
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata)
+      audio.removeEventListener('waiting', handleWaiting)
+      audio.removeEventListener('canplay', handleCanPlay)
       audio.removeEventListener('timeupdate', handleTimeUpdate)
       audio.removeEventListener('ended', handleEndedInternal)
       audio.removeEventListener('error', handleError)
     }
-  }, [currentSong, next, repeat])
+  }, [currentSong, next, repeat, playing])
+
   const [liked, setLiked] = useState(false)
   const [showComments, setShowComments] = useState(false)
   const [showOptions, setShowOptions] = useState(false)
@@ -322,15 +345,7 @@ function PlayerBar() {
     <div className="fixed bottom-0 left-0 right-0 h-20 md:h-24 bg-[#0a0a0b]/95 backdrop-blur-xl border-t border-white/5 flex items-center px-4 md:px-6 z-[200] shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
       <audio
         ref={audioRef}
-        onCanPlay={() => {
-          if (playing) {
-            audioRef.current.play().catch(err => {
-              if (err.name !== 'AbortError') console.error("[Player] onCanPlay Error:", err.message)
-            })
-          }
-        }}
         onStalled={() => console.warn("Audio playback stalled...")}
-        onWaiting={() => console.log("Audio playback waiting for data...")}
       />
 
       {/* Progress Bar (Top) */}
@@ -343,8 +358,8 @@ function PlayerBar() {
         }}
       >
         <div 
-          className="h-full bg-gradient-to-r from-cyan-500 to-purple-500 relative transition-all duration-100"
-          style={{ width: `${(currentTime / duration) * 100}%` }}
+          className={`h-full bg-gradient-to-r from-cyan-500 to-purple-500 relative transition-all duration-100 ${isLoading ? 'animate-pulse' : ''}`}
+          style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
         >
           <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"></div>
         </div>
