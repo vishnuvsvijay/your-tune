@@ -6,9 +6,18 @@ const auth = async (req, res, next) => {
     const header = req.headers.authorization || ''
     let token = header.startsWith('Bearer ') ? header.slice(7) : null
     if (!token && req.query?.token) token = req.query.token
-    if (!token) return res.status(401).json({ message: 'No token' })
+    if (!token) {
+      console.warn("[Auth] No token provided in request")
+      return res.status(401).json({ message: 'No authentication token provided' })
+    }
   // Guest bypass removed: login is mandatory
-    const payload = jwt.verify(token, process.env.JWT_SECRET || 'devsecret')
+    let payload
+    try {
+      payload = jwt.verify(token, process.env.JWT_SECRET || 'devsecret')
+    } catch (jwtErr) {
+      console.error("[Auth] JWT Verification Failed:", jwtErr.message)
+      return res.status(401).json({ message: 'Invalid or expired token' })
+    }
     let user
     if (global.__db_connected === false) {
       user = (global.__demo_users || []).find((u) => u._id === payload.id)

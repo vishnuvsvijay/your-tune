@@ -84,7 +84,11 @@ function AdminDashboard() {
     if (imageFile) fd.append('cover', imageFile)
 
     try {
-      await api.post(`/songs?token=${token}`, fd)
+      await api.post(`/songs?token=${token}`, fd, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
       alert('Success! Song uploaded successfully.')
       setUpload({ title: '', artist: '' })
       setAudioFile(null)

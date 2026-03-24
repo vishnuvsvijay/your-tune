@@ -7,6 +7,13 @@ const api = axios.create({
   withCredentials: true,
 })
 
+if (import.meta.env.PROD) {
+  console.log("[API] Using Base URL:", api.defaults.baseURL)
+  if (!import.meta.env.VITE_API_URL) {
+    console.warn("[API] VITE_API_URL is NOT set! API calls might go to Vercel itself.")
+  }
+}
+
 api.interceptors.request.use((config) => {
   try {
     const url = (config?.url || '').toString()
