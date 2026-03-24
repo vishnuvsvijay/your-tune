@@ -32,16 +32,20 @@ if (!fs.existsSync(uploadsPath)) {
 const allowedOrigins = [
   'http://localhost:5000',
   'http://localhost:5001',
-  'https://music-player-react-one.vercel.app', // Adding a known origin if applicable or making it dynamic
+  'https://music-player-react-one.vercel.app',
+  'https://your-tune-lovat.vercel.app',
+  'https://your-tune.vercel.app',
   process.env.FRONTEND_URL
 ].filter(Boolean)
 
 app.use(cors({ 
   origin: (origin, callback) => {
-    // In production, if origin is missing (like in some server-to-server calls) or in allowedOrigins
-    if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
+    // In production, allow if origin is missing, or in allowedOrigins, or matches .vercel.app
+    const isVercel = origin && /\.vercel\.app$/.test(origin)
+    if (!origin || allowedOrigins.includes(origin) || isVercel || process.env.NODE_ENV !== 'production') {
       callback(null, true)
     } else {
+      console.error("CORS Blocked for origin:", origin)
       callback(new Error('Not allowed by CORS'))
     }
   }, 

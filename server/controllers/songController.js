@@ -366,11 +366,17 @@ exports.like = async (req, res) => {
 // 5. Admin Upload Logic
 exports.create = async (req, res) => {
   try {
+    console.log("[Upload] Received request body:", req.body)
     const files = req.files || []
+    console.log("[Upload] Received files:", files.map(f => ({ name: f.originalname, type: f.mimetype, size: f.size })))
+
     const songFile = files.find(f => f.mimetype.startsWith('audio/'))
     const coverFile = files.find(f => f.mimetype.startsWith('image/'))
     
-    if (!songFile) return res.status(400).json({ message: 'No audio file found' })
+    if (!songFile) {
+      console.warn("[Upload] Missing audio file. Found files types:", files.map(f => f.mimetype))
+      return res.status(400).json({ message: 'No audio file found or invalid format' })
+    }
 
     const meta = {
       title: req.body.title || path.parse(songFile.originalname).name,
@@ -380,10 +386,12 @@ exports.create = async (req, res) => {
       adminUpload: true,
       uploadedBy: req.user?._id
     }
+    
     const doc = await Song.create(meta)
+    console.log("[Upload] Success! Created song:", doc._id)
     res.json({ data: doc })
   } catch (e) {
-    console.error("Upload failed:", e)
+    console.error("[Upload] Server Error:", e)
     res.status(500).json({ message: 'Upload failed', error: e.message })
   }
 }

@@ -2,7 +2,21 @@ const express = require('express')
 const router = express.Router()
 const songController = require('../controllers/songController')
 const multer = require('multer')
-const upload = multer({ dest: 'uploads/' })
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = path.join(__dirname, '..', 'uploads')
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
+    cb(null, dir)
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9)
+    cb(null, uniqueSuffix + path.extname(file.originalname))
+  }
+})
+const upload = multer({ 
+  storage,
+  limits: { fileSize: 50 * 1024 * 1024 } // 50MB limit
+})
 
 const { auth } = require('../middleware/auth')
 
@@ -20,7 +34,18 @@ router.get('/trending', (req, res) => {
 // ERROR FIX: Check if .list exists, else use fallback to avoid crash
 router.get('/', songController.list || ((req, res) => res.json([])))
 
-router.post('/', auth, upload.any(), (req, res) => {
+router.post('/', auth, (req, res, next) => {
+    upload.any()(req, res, (err) => {
+        if (err instanceof multer.MulterError) {
+            console.error("[Multer Error]:", err)
+            return res.status(400).json({ message: `Upload error: ${err.message}` })
+        } else if (err) {
+            console.error("[Upload Error]:", err)
+            return res.status(500).json({ message: "An unknown error occurred during upload" })
+        }
+        next()
+    })
+}, (req, res) => {
     if (songController && typeof songController.create === 'function') {
         return songController.create(req, res);
     }

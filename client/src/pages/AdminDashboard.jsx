@@ -85,11 +85,16 @@ function AdminDashboard() {
 
     try {
       await api.post(`/songs?token=${token}`, fd)
-      alert('Success!')
+      alert('Success! Song uploaded successfully.')
       setUpload({ title: '', artist: '' })
       setAudioFile(null)
       setImageFile(null)
-    } catch (err) { alert('Upload failed') }
+      fetchData() // Refresh list
+    } catch (err) { 
+      const msg = err?.response?.data?.message || 'Upload failed'
+      alert(`Upload Error: ${msg}`)
+      console.error("Full Upload Error:", err)
+    }
   }
 
   // UI rendering starts here
