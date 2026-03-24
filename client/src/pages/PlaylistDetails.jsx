@@ -5,7 +5,7 @@ import { useAuth } from '../store/auth'
 import { usePlayer } from '../store/player'
 import api from '../services/api'
 import { socket } from '../sockets'
-import { FaPlay, FaHeart, FaRegHeart, FaEllipsisV, FaRandom, FaMusic, FaThumbsUp, FaRegThumbsDown } from 'react-icons/fa'
+import { FaPlay, FaHeart, FaRegHeart, FaEllipsisV, FaRandom, FaMusic, FaThumbsUp, FaRegThumbsDown, FaShareAlt } from 'react-icons/fa'
 import { IoShuffleOutline } from 'react-icons/io5'
 
 function PlaylistDetails() {
@@ -14,6 +14,20 @@ function PlaylistDetails() {
   const { currentSong, playing, setCurrentSong } = usePlayer()
   const [playlist, setPlaylist] = useState(null)
   const [loading, setLoading] = useState(true)
+
+  const handleShare = async (title, text, path) => {
+    const url = `${window.location.origin}${path}`
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, text, url })
+      } else {
+        await navigator.clipboard.writeText(url)
+        alert('Link copied to clipboard!')
+      }
+    } catch (err) {
+      console.error('Error sharing:', err)
+    }
+  }
 
   const load = async () => {
     setLoading(true)
@@ -143,6 +157,12 @@ function PlaylistDetails() {
                   <FaPlay className="ml-1 text-3xl" />
                 )}
               </button>
+              <button 
+                onClick={() => handleShare(playlist.name, `Check out this playlist by ${playlist.userId?.name || 'Community'}`, `/playlist/${playlist._id}`)}
+                className="w-14 h-14 rounded-full bg-white/5 hover:bg-white/10 transition flex items-center justify-center text-xl border border-white/10 shadow-xl"
+              >
+                <FaShareAlt />
+              </button>
               <button className="w-14 h-14 rounded-full bg-white/5 hover:bg-white/10 transition flex items-center justify-center text-xl border border-white/10 shadow-xl">
                 <FaEllipsisV />
               </button>
@@ -163,6 +183,7 @@ function PlaylistDetails() {
                   currentSong={currentSong}
                   playing={playing}
                   setCurrentSong={setCurrentSong}
+                  onShare={handleShare}
                 />
               ))}
             </div>
@@ -179,7 +200,7 @@ function PlaylistDetails() {
   )
 }
 
-function SongRow({ song, index, queue, currentSong, playing, setCurrentSong }) {
+function SongRow({ song, index, queue, currentSong, playing, setCurrentSong, onShare }) {
   const isCurrent = currentSong?._id === song._id
   const { user } = useAuth()
   const [liked, setLiked] = useState(false)
@@ -192,6 +213,11 @@ function SongRow({ song, index, queue, currentSong, playing, setCurrentSong }) {
   
   const handlePlay = () => {
     setCurrentSong(song, queue)
+  }
+
+  const handleShareSong = (e) => {
+    e.stopPropagation()
+    onShare(song.title, `Check out this song: ${song.title} by ${song.artist}`, `/?songId=${song._id || song.id}`)
   }
 
   const toggleLike = async (e) => {
@@ -253,6 +279,12 @@ function SongRow({ song, index, queue, currentSong, playing, setCurrentSong }) {
             className={`transition text-xl ${liked ? 'text-cyan-400' : 'text-gray-600 hover:text-white'}`}
           >
             <FaThumbsUp />
+          </button>
+          <button 
+            onClick={handleShareSong}
+            className="text-gray-600 hover:text-white transition text-xl"
+          >
+            <FaShareAlt />
           </button>
           <button className="text-gray-600 hover:text-white transition text-xl">
             <FaEllipsisV />

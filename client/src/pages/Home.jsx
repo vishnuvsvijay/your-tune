@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../services/api';
 import { useAuth } from '../store/auth';
-import { Link } from 'react-router-dom';
-import { FaPlus, FaSearch, FaPlay, FaHeart, FaRegComment, FaSignOutAlt, FaThumbsUp, FaEllipsisV, FaBars, FaTimes, FaChartBar, FaHistory } from 'react-icons/fa';
+import { Link, useLocation } from 'react-router-dom';
+import { FaPlus, FaSearch, FaPlay, FaHeart, FaRegComment, FaSignOutAlt, FaThumbsUp, FaEllipsisV, FaBars, FaTimes, FaChartBar, FaHistory, FaShareAlt } from 'react-icons/fa';
 import { FiHome, FiCompass } from 'react-icons/fi';
 import { MdLibraryMusic } from 'react-icons/md';
 import { socket } from '../sockets';
@@ -15,6 +15,23 @@ const Home = () => {
   const { token, user, logout } = useAuth();
   const { setCurrentSong } = usePlayer();
   const { searchQuery, searchResults, searching, setSearchQuery, clearSearch } = useSearch();
+  const location = useLocation();
+
+  const handleShare = async (e, title, text, path) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const url = `${window.location.origin}${path}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, text, url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        alert('Link copied to clipboard!');
+      }
+    } catch (err) {
+      console.error('Error sharing:', err);
+    }
+  };
   
   const [likedSongs, setLikedSongs] = useState([]);
   const [showCreatePlaylist, setShowCreatePlaylist] = useState(false);
@@ -40,6 +57,20 @@ const Home = () => {
 
       const list = songsRes?.data?.data || [];
       setAvailableSongs(list);
+      
+      // Auto-play shared song if songId is in URL
+      const params = new URLSearchParams(location.search);
+      const sharedSongId = params.get('songId');
+      if (sharedSongId) {
+        const sharedSong = list.find(s => s._id === sharedSongId || s.id === sharedSongId);
+        if (sharedSong) {
+          setCurrentSong(sharedSong, list);
+        } else {
+          // If not found in local list, it might be a YouTube song or something else
+          // We can try to fetch it if needed, but for now we look in the list
+        }
+      }
+
       if (user?.id) {
         const liked = list.filter((s) =>
           Array.isArray(s.likes) &&
@@ -324,8 +355,16 @@ const Home = () => {
                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-20 group-hover:scale-110 transition-transform">
                       <FaThumbsUp className="text-white text-[120px]" />
                     </div>
-                    <div className="absolute top-4 right-4 text-white/40 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <FaEllipsisV />
+                    <div className="absolute top-4 right-4 flex items-center gap-2">
+                      <button 
+                        onClick={(e) => handleShare(e, "Liked Music", "Check out my liked songs!", "/liked")}
+                        className="w-8 h-8 rounded-full bg-black/20 flex items-center justify-center text-white/40 opacity-0 group-hover:opacity-100 transition-all hover:text-white"
+                      >
+                        <FaShareAlt size={12} />
+                      </button>
+                      <div className="w-8 h-8 rounded-full bg-black/20 flex items-center justify-center text-white/40 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <FaEllipsisV size={12} />
+                      </div>
                     </div>
                     <div className="relative z-10">
                       <h3 className="text-2xl font-black italic text-white mb-1">Liked music</h3>
@@ -342,8 +381,16 @@ const Home = () => {
                       <FaHistory className="text-white text-[120px]" />
                     </div>
                     <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent"></div>
-                    <div className="absolute top-4 right-4 text-white/20 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <FaEllipsisV />
+                    <div className="absolute top-4 right-4 flex items-center gap-2">
+                      <button 
+                        onClick={(e) => handleShare(e, "Replay Mix", "My recently played songs", "/replay-mix")}
+                        className="w-8 h-8 rounded-full bg-black/20 flex items-center justify-center text-white/20 opacity-0 group-hover:opacity-100 transition-all hover:text-white"
+                      >
+                        <FaShareAlt size={12} />
+                      </button>
+                      <div className="w-8 h-8 rounded-full bg-black/20 flex items-center justify-center text-white/20 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <FaEllipsisV size={12} />
+                      </div>
                     </div>
                     <div className="relative z-10">
                       <h3 className="text-2xl font-black italic text-white mb-1">Replay Mix</h3>
@@ -383,6 +430,12 @@ const Home = () => {
                               <FaPlay className="ml-1" />
                             </div>
                           </div>
+                          <button 
+                            onClick={(e) => handleShare(e, pl.name, `Check out this playlist: ${pl.name} by ${pl.userId?.name || 'Community'}`, `/playlist/${pl._id}`)}
+                            className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-all hover:text-cyan-400"
+                          >
+                            <FaShareAlt size={12} />
+                          </button>
                         </div>
                         <h3 className="font-bold text-white truncate">{pl.name}</h3>
                         <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mt-1">

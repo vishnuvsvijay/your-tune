@@ -1,7 +1,7 @@
 import { usePlayer } from '../store/player'
 import api from '../services/api'
 import { useAuth } from '../store/auth'
-import { FaPlay, FaHeart, FaRegHeart } from 'react-icons/fa'
+import { FaPlay, FaHeart, FaRegHeart, FaShareAlt } from 'react-icons/fa'
 import { useState, useEffect } from 'react'
 import { socket } from '../sockets'
 
@@ -9,6 +9,24 @@ function SongCard({ song, queue }) {
   const { currentSong, setCurrentSong } = usePlayer()
   const { user } = useAuth()
   const [liked, setLiked] = useState(false)
+
+  const handleShare = async (e) => {
+    e.stopPropagation()
+    const url = `${window.location.origin}/?songId=${song._id || song.id}`
+    const title = song.title
+    const text = `Check out this song: ${song.title} by ${song.artist}`
+    
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, text, url })
+      } else {
+        await navigator.clipboard.writeText(url)
+        alert('Link copied to clipboard!')
+      }
+    } catch (err) {
+      console.error('Error sharing:', err)
+    }
+  }
 
   useEffect(() => {
     if (user && song) {
@@ -85,6 +103,12 @@ function SongCard({ song, queue }) {
           className={`like-btn absolute top-3 right-3 w-8 h-8 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 ${liked ? 'text-red-500 opacity-100' : 'text-white hover:text-red-500'}`}
         >
           {liked ? <FaHeart size={16} /> : <FaRegHeart size={16} />}
+        </button>
+        <button 
+          onClick={handleShare}
+          className="share-btn absolute top-3 left-3 w-8 h-8 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 text-white hover:text-cyan-400"
+        >
+          <FaShareAlt size={14} />
         </button>
       </div>
       <div className="space-y-1 px-1">

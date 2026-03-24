@@ -3,7 +3,7 @@ import { usePlayer } from '../store/player'
 import { 
   FaPlay, FaPause, FaStepForward, FaStepBackward, 
   FaHeart, FaRegHeart, FaRegComment, FaEllipsisV, 
-  FaDownload, FaMoon, FaRedo, FaTrash
+  FaDownload, FaMoon, FaRedo, FaTrash, FaShareAlt
 } from 'react-icons/fa'
 import { useAuth } from '../store/auth'
 import api from '../services/api'
@@ -15,6 +15,24 @@ function PlayerBar() {
   const audioRef = useRef(null)
   const { currentSong, playing, togglePlay, next, prev, queue, setCurrentSong, repeat, toggleRepeat } = usePlayer()
   const { user } = useAuth()
+
+  const handleShare = async () => {
+    if (!currentSong) return
+    const url = `${window.location.origin}/?songId=${currentSong._id || currentSong.id}`
+    const title = currentSong.title
+    const text = `Listening to ${currentSong.title} by ${currentSong.artist}`
+    
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, text, url })
+      } else {
+        await navigator.clipboard.writeText(url)
+        alert('Link copied to clipboard!')
+      }
+    } catch (err) {
+      console.error('Error sharing:', err)
+    }
+  }
 
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
@@ -343,7 +361,16 @@ function PlayerBar() {
             <div className={`absolute -inset-1 bg-cyan-500/20 rounded-xl blur-lg opacity-0 group-hover:opacity-100 transition-opacity ${playing ? 'opacity-100' : ''}`}></div>
           </div>
           <div className="min-w-0">
-            <h3 className="font-black text-xs md:text-base truncate tracking-tight group-hover:text-cyan-400 transition cursor-default">{currentSong.title}</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="font-black text-xs md:text-base truncate tracking-tight group-hover:text-cyan-400 transition cursor-default">{currentSong.title}</h3>
+              <button 
+                onClick={handleShare}
+                className="text-gray-500 hover:text-cyan-400 transition-colors"
+                title="Share"
+              >
+                <FaShareAlt size={10} />
+              </button>
+            </div>
             <p className="text-[9px] md:text-xs text-gray-500 font-bold uppercase tracking-widest truncate">{currentSong.artist || 'Unknown Artist'}</p>
           </div>
         </div>
@@ -384,6 +411,14 @@ function PlayerBar() {
         {showOptions && (
           <div className="absolute bottom-[70px] md:bottom-[80px] right-0 w-[200px] md:w-[240px] bg-[#121214] border border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-2 duration-300 z-[110]">
             <div className="p-2 space-y-1">
+              <button 
+                onClick={handleShare}
+                className="w-full flex items-center gap-3 md:gap-4 px-3 md:px-4 py-2 md:py-3 hover:bg-white/5 transition text-xs md:text-sm font-bold text-gray-300 rounded-xl"
+              >
+                <FaShareAlt className="text-gray-500" />
+                <span>Share Song</span>
+              </button>
+
               <button 
                 onClick={handleDownload}
                 className="w-full flex items-center gap-3 md:gap-4 px-3 md:px-4 py-2 md:py-3 hover:bg-white/5 transition text-xs md:text-sm font-bold text-gray-300 rounded-xl"
