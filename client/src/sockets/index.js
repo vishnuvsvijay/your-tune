@@ -1,8 +1,12 @@
 import { io } from 'socket.io-client'
 import { getServerBase } from '../services/api'
 
-export const socket = io(import.meta.env.VITE_SOCKET_URL || '/', {
+const socketUrl = import.meta.env.VITE_SOCKET_URL || getServerBase()
+
+export const socket = io(socketUrl, {
   autoConnect: false,
+  withCredentials: true,
+  transports: ['websocket', 'polling']
 })
 
 export const connectSocket = (token) => {

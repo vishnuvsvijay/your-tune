@@ -46,7 +46,7 @@ router.post('/like-any', auth, songController.likeAny || ((req, res) => res.json
 // 5. Comments
 router.get('/:id/comments', songController.listComments || ((req, res) => res.json([])))
 router.post('/:id/comments', auth, songController.addComment || ((req, res) => res.json({})))
-router.post('/:id/comments/:commentId/like', auth, songController.likeComment || ((req, res) => res.json({})))
+router.post('/comments/:commentId/like', auth, songController.likeComment || ((req, res) => res.json({})))
 
 // 6. Play Tracking & Replay Mix
 router.post('/:id/play', auth, songController.recordPlay || ((req, res) => res.json({})))

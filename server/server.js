@@ -24,15 +24,22 @@ app.use((req, res, next) => {
 })
 
 // Middleware
+const uploadsPath = path.join(__dirname, 'uploads')
+if (!fs.existsSync(uploadsPath)) {
+  fs.mkdirSync(uploadsPath, { recursive: true })
+}
+
 const allowedOrigins = [
   'http://localhost:5000',
   'http://localhost:5001',
+  'https://music-player-react-one.vercel.app', // Adding a known origin if applicable or making it dynamic
   process.env.FRONTEND_URL
 ].filter(Boolean)
 
 app.use(cors({ 
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
+    // In production, if origin is missing (like in some server-to-server calls) or in allowedOrigins
+    if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
       callback(null, true)
     } else {
       callback(new Error('Not allowed by CORS'))

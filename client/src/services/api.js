@@ -2,7 +2,7 @@ import axios from 'axios'
 
 const api = axios.create({
   baseURL: import.meta.env.PROD 
-    ? ((import.meta.env.VITE_API_URL || '').replace(/\/$/, '') + '/api') 
+    ? ((import.meta.env.VITE_API_URL || window.location.origin).replace(/\/$/, '') + '/api') 
     : '/api',
   withCredentials: true,
 })
@@ -30,7 +30,7 @@ api.interceptors.response.use(
 
 export const getServerBase = () => {
   if (import.meta.env.PROD) {
-    return import.meta.env.VITE_API_URL || ''
+    return (import.meta.env.VITE_API_URL || window.location.origin).replace(/\/api$/, '').replace(/\/$/, '')
   }
   return 'http://localhost:5001'
 }

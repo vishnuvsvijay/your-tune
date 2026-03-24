@@ -366,8 +366,9 @@ exports.like = async (req, res) => {
 // 5. Admin Upload Logic
 exports.create = async (req, res) => {
   try {
-    const songFile = req.files.find(f => f.mimetype.startsWith('audio/'))
-    const coverFile = req.files.find(f => f.mimetype.startsWith('image/'))
+    const files = req.files || []
+    const songFile = files.find(f => f.mimetype.startsWith('audio/'))
+    const coverFile = files.find(f => f.mimetype.startsWith('image/'))
     
     if (!songFile) return res.status(400).json({ message: 'No audio file found' })
 
@@ -382,7 +383,8 @@ exports.create = async (req, res) => {
     const doc = await Song.create(meta)
     res.json({ data: doc })
   } catch (e) {
-    res.status(500).json({ message: 'Upload failed' })
+    console.error("Upload failed:", e)
+    res.status(500).json({ message: 'Upload failed', error: e.message })
   }
 }
 
