@@ -14,19 +14,17 @@ function Liked() {
   const [loading, setLoading] = useState(true)
 
   const load = async () => {
+    if (!user?.id) return
     setLoading(true)
-    const res = await api.get('/songs').catch(() => null)
-    const list = res?.data?.data || []
-    if (user?.id) {
-      const liked = list.filter((s) =>
-        Array.isArray(s.likes) &&
-        s.likes.some((u) => (typeof u === 'string' ? u === user.id : u?._id === user.id))
-      )
-      setSongs(liked)
-    } else {
+    try {
+      const res = await api.get('/songs/liked-files')
+      setSongs(res.data.data || [])
+    } catch (err) {
+      console.error("Failed to load liked songs", err)
       setSongs([])
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   useEffect(() => {

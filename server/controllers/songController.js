@@ -131,8 +131,8 @@ exports.list = async (req, res) => {
       rows = [...global.__demo_songs, ...rows].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
     }
     
-    res.json(rows)
-  } catch { res.json([]) }
+    res.json({ data: rows })
+  } catch { res.json({ data: [] }) }
 }
 
 // 3.1 Search Combined (Admin + YouTube)
@@ -320,20 +320,28 @@ exports.like = async (req, res) => {
     const userId = req.user?._id?.toString() || req.user?.id
     if (!userId) return res.status(401).json({ message: 'Unauthorized' })
     
-    const s = await Song.findById(req.params.id)
+    let s
+    if (global.__db_connected === false) {
+      s = (global.__demo_songs || []).find(song => song._id === req.params.id)
+    } else {
+      s = await Song.findById(req.params.id)
+    }
+    
     if (!s) return res.status(404).json({ message: 'Not found' })
     
     const has = (s.likes || []).some(u => u.toString() === userId)
     s.likes = has ? s.likes.filter(u => u.toString() !== userId) : [...(s.likes || []), userId]
     
-    await s.save()
+    if (global.__db_connected !== false) {
+      await s.save()
+    }
 
     // Real-time update for likes
     req.app.get('io').emit('song:liked', { 
       songId: s._id, 
       likes: s.likes.length, 
       userId,
-      isLiked: !has // Tells the frontend if the user just liked or unliked
+      isLiked: !has 
     })
 
     // Manage 'liked' folder if it's a local file
@@ -405,10 +413,20 @@ exports.create = async (req, res) => {
         updatedAt: new Date()
       }
       global.__demo_songs.push(doc)
+      
+      // Real-time update
+      const io = req.app.get('io')
+      if (io) io.emit('song:created', doc)
+
       return res.json({ data: doc })
     }
     
     const doc = await Song.create(meta)
+    
+    // Real-time update
+    const io = req.app.get('io')
+    if (io) io.emit('song:created', doc)
+
     console.log("[Upload] Success! Created song:", doc._id)
     res.json({ data: doc })
   } catch (e) {
@@ -537,8 +555,20 @@ exports.listAdminUploads = async (req, res) => {
 
 exports.listLikedFiles = async (req, res) => {
   try {
-    const userId = req.user?._id
-    const rows = await Song.find({ likes: userId }).sort({ createdAt: -1 }).lean()
+    const userId = req.user?._id?.toString()
+    let rows = []
+    if (global.__db_connected !== false) {
+      rows = await Song.find({ likes: userId }).sort({ createdAt: -1 }).lean()
+    }
+    
+    // Add liked demo songs
+    if (global.__demo_songs) {
+      const likedDemo = global.__demo_songs.filter(s => 
+        (s.likes || []).some(u => u.toString() === userId)
+      )
+      rows = [...likedDemo, ...rows].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    }
+    
     res.json({ data: rows })
   } catch { res.json({ data: [] }) }
 }
@@ -548,20 +578,40 @@ exports.likeAny = async (req, res) => {
     const userId = req.user?._id?.toString()
     const { title, artist, fileUrl, coverImage } = req.body
     
-    let s = await Song.findOne({ fileUrl })
+    let s
+    if (global.__db_connected === false) {
+      s = (global.__demo_songs || []).find(song => song.fileUrl === fileUrl)
+    } else {
+      s = await Song.findOne({ fileUrl })
+    }
+
     if (!s) {
-      s = await Song.create({ 
+      const meta = { 
         title, 
         artist, 
         fileUrl, 
         coverImage, 
         likes: [userId] 
-      })
+      }
+      if (global.__db_connected === false) {
+        s = {
+          _id: 'demo_' + Date.now(),
+          ...meta,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+        global.__demo_songs = global.__demo_songs || []
+        global.__demo_songs.push(s)
+      } else {
+        s = await Song.create(meta)
+      }
     } else {
       const has = (s.likes || []).some(u => u.toString() === userId)
       if (!has) {
         s.likes = [...(s.likes || []), userId]
-        await s.save()
+        if (global.__db_connected !== false) {
+          await s.save()
+        }
       }
     }
 
