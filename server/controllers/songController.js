@@ -121,11 +121,18 @@ exports.resolveForClient = async (req, res) => {
 // 3. List Songs from MongoDB
 exports.list = async (req, res) => {
   try {
-    const rows = await Song.find().sort({ createdAt: -1 }).lean()
-    res.json({ data: rows })
-  } catch {
-    res.json({ data: [] })
-  }
+    let rows = []
+    if (global.__db_connected !== false) {
+      rows = await Song.find().sort({ createdAt: -1 }).lean()
+    }
+    
+    // Add demo songs if in demo mode
+    if (global.__demo_songs) {
+      rows = [...global.__demo_songs, ...rows].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    }
+    
+    res.json(rows)
+  } catch { res.json([]) }
 }
 
 // 3.1 Search Combined (Admin + YouTube)
@@ -387,12 +394,27 @@ exports.create = async (req, res) => {
       uploadedBy: req.user?._id
     }
     
+    if (global.__db_connected === false) {
+      console.warn("[Upload] Saving song in Demo Mode (In-Memory)")
+      global.__demo_songs = global.__demo_songs || []
+      const doc = {
+        _id: 'demo_' + Date.now(),
+        ...meta,
+        likes: [],
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+      global.__demo_songs.push(doc)
+      return res.json({ data: doc })
+    }
+    
     const doc = await Song.create(meta)
     console.log("[Upload] Success! Created song:", doc._id)
     res.json({ data: doc })
   } catch (e) {
     console.error("[Upload] Server Error:", e)
-    res.status(500).json({ message: 'Upload failed', error: e.message })
+    const extra = (global.__db_connected === false) ? " (Database disconnected)" : ""
+    res.status(500).json({ message: 'Upload failed' + extra, error: e.message })
   }
 }
 
@@ -499,7 +521,16 @@ exports.findByFile = async (req, res) => {
 
 exports.listAdminUploads = async (req, res) => {
   try {
-    const rows = await Song.find({ adminUpload: true }).sort({ createdAt: -1 }).lean()
+    let rows = []
+    if (global.__db_connected !== false) {
+      rows = await Song.find({ adminUpload: true }).sort({ createdAt: -1 }).lean()
+    }
+    
+    // Add demo songs if in demo mode
+    if (global.__demo_songs) {
+      rows = [...global.__demo_songs, ...rows].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    }
+    
     res.json({ data: rows })
   } catch { res.json({ data: [] }) }
 }

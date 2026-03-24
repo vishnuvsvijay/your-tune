@@ -2,12 +2,29 @@ import { useEffect, useState } from 'react'
 import api from '../services/api'
 import { useAuth } from '../store/auth'
 import { useNavigate } from 'react-router-dom'
-import { 
-  FaUsers, FaMusic, FaBroadcastTower, FaUpload, FaChartBar, 
+import { FaUsers, FaMusic, FaBroadcastTower, FaUpload, FaChartBar, 
   FaSignOutAlt, FaCloudUploadAlt, FaWaveSquare, FaFire, FaHeart, FaPlay, FaListUl
 } from 'react-icons/fa'
-import { FiArrowLeft, FiSearch } from 'react-icons/fi'
+import { FiArrowLeft, FiSearch, FiAlertTriangle } from 'react-icons/fi'
 import { socket } from '../sockets'
+
+const ApiWarning = () => {
+  if (import.meta.env.PROD && !import.meta.env.VITE_API_URL) {
+    return (
+      <div className="bg-red-500/10 border border-red-500/20 text-red-500 p-4 rounded-2xl mb-6 flex items-start gap-4">
+        <FiAlertTriangle className="text-xl shrink-0 mt-1" />
+        <div>
+          <h4 className="font-black text-lg">API Configuration Error</h4>
+          <p className="text-sm font-medium text-white/60">
+            The backend URL is not set. Your frontend is likely trying to call itself, which will fail. 
+            You must set the <code className="bg-red-900/50 px-1 py-0.5 rounded">VITE_API_URL</code> environment variable in your Vercel project settings.
+          </p>
+        </div>
+      </div>
+    )
+  }
+  return null
+}
 
 function AdminDashboard() {
   const { token, user, logout } = useAuth()
@@ -95,8 +112,20 @@ function AdminDashboard() {
       setImageFile(null)
       fetchData() // Refresh list
     } catch (err) { 
-      const msg = err?.response?.data?.message || 'Upload failed'
-      alert(`Upload Error: ${msg}`)
+      let msg = 'Upload failed'
+      let detail = ''
+      if (err.response) {
+        msg = err.response.data?.message || `Server Error: ${err.response.status}`
+        detail = err.response.data?.error || ''
+        if (err.response.status === 404) msg = "API Endpoint not found. Check VITE_API_URL."
+        if (err.response.status === 413) msg = "File too large. Maximum size is 50MB."
+      } else if (err.request) {
+        msg = "Network Error: Could not reach the server. Is the backend running?"
+      } else {
+        msg = err.message
+      }
+      
+      alert(`Upload Error: ${msg}${detail ? '\nDetail: ' + detail : ''}`)
       console.error("Full Upload Error:", err)
     }
   }
@@ -147,6 +176,7 @@ function AdminDashboard() {
         </header>
 
         <main className="flex-1 overflow-y-auto px-10 py-10 pb-32 scrollbar-hide">
+          <ApiWarning />
           {/* STATS ROW */}
           <div className="grid grid-cols-4 gap-6 mb-12">
             {[

@@ -31,12 +31,16 @@ exports.stats = async (req, res) => {
       data.playlists = playlistsCount || 0
       data.plays = Math.floor((usageData[0]?.totalSeconds || 0) / 180) || 0
       data.likes = songsData[0]?.totalLikes || 0
-    } else if (global.__demo_users) {
-      data.users = global.__demo_users.length
-      data.songs = 50 // Dummy for demo
-      data.playlists = 10
-      data.plays = 1200
-      data.likes = 450
+    }
+    
+    // Add demo data to stats if in demo mode
+    if (global.__demo_songs) {
+      data.songs += global.__demo_songs.length
+      data.likes += global.__demo_songs.reduce((acc, s) => acc + (s.likes?.length || 0), 0)
+    } else if (global.__db_connected === false) {
+      // Fallback for initial demo state
+      data.songs = 0
+      data.playlists = 0
     }
 
     res.json({ data })
