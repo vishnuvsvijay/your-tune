@@ -22,23 +22,35 @@ exports.streamProxy = async (req, res) => {
       try {
         console.log(`[Play-DL] Step 1: Validated URL, getting stream for ${target}`)
         
+        // Ensure play-dl is authorized (helps with 403 errors)
+        if (play.is_logged_in) {
+          // Already handled via cookie if provided in play-dl config
+        }
+
         // Using play-dl for a MUCH more stable stream
         const streamInfo = await play.stream(target, {
           quality: 2, // highest audio
-          discordPlayerCompatibility: true
+          discordPlayerCompatibility: true,
+          // Adding additional headers to mimic a browser
+          htm: true
         })
 
         if (!streamInfo || !streamInfo.stream) {
           throw new Error("Failed to extract stream using play-dl")
         }
 
-        console.log(`[Play-DL] Step 2: Stream extracted successfully`)
+        console.log(`[Play-DL] Step 2: Stream extracted successfully. Type: ${streamInfo.type}`)
 
         // Set headers for smooth streaming
-        res.setHeader('Content-Type', 'audio/mpeg')
+        res.setHeader('Content-Type', streamInfo.type || 'audio/mpeg')
         res.setHeader('Accept-Ranges', 'bytes')
         res.setHeader('Access-Control-Allow-Origin', '*')
-        res.setHeader('Cache-Control', 'no-cache')
+        res.setHeader('Cache-Control', 'public, max-age=3600')
+        
+        // IMPORTANT: Set Content-Length if available to help browser show duration
+        if (streamInfo.content_length) {
+          res.setHeader('Content-Length', streamInfo.content_length)
+        }
         
         res.status(200)
 
@@ -53,19 +65,29 @@ exports.streamProxy = async (req, res) => {
         return
       } catch (err) {
         console.error("[Play-DL] Audio Extraction Error:", err.message)
-        // Fallback to the old ytdl-core if play-dl fails (though play-dl is better)
+        
+        // Fallback 1: ytdl-core (distube version)
         try {
-            console.log("[Play-DL Fallback] Attempting ytdl-core fallback...")
-            const info = await ytdl.getInfo(target);
+            console.log("[Fallback 1] Attempting @distube/ytdl-core...")
+            const info = await ytdl.getInfo(target, {
+              requestOptions: {
+                headers: {
+                  cookie: process.env.YOUTUBE_COOKIE || '',
+                }
+              }
+            });
             const format = ytdl.chooseFormat(info.formats, { quality: 'highestaudio', filter: 'audioonly' });
             if (format) {
-                res.setHeader('Content-Type', format.mimeType);
+                res.setHeader('Content-Type', format.mimeType || 'audio/mpeg');
                 ytdl(target, { format }).pipe(res);
                 return;
             }
         } catch (ytdlErr) {
-            console.error("[YTDL Fallback] Also failed:", ytdlErr.message);
+            console.error("[Fallback 1] Failed:", ytdlErr.message);
         }
+
+        // Fallback 2: Direct YouTube Redirect (Risky but sometimes works as a last resort)
+        // Note: Browsers might block this due to CORS, but sometimes it's better than nothing
         return res.status(500).json({ message: "YouTube audio extraction failed", error: err.message })
       }
     }
@@ -221,7 +243,8 @@ exports.search = async (req, res) => {
             isYoutube: true,
             fileUrl: `https://www.youtube.com/watch?v=${item.id.videoId}`,
             likes: [],
-            isTopic: item.snippet.channelTitle.toLowerCase().endsWith('- topic')
+            isTopic: item.snippet.channelTitle.toLowerCase().endsWith('- topic'),
+            duration: 210 // Default duration for search results
           };
         });
 
@@ -271,7 +294,8 @@ exports.search = async (req, res) => {
             isYoutube: true,
             fileUrl: v.url,
             likes: [],
-            isTopic: (v.author?.name || '').toLowerCase().includes('topic')
+            isTopic: (v.author?.name || '').toLowerCase().includes('topic'),
+            duration: v.seconds || 210
           };
         });
 

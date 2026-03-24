@@ -36,6 +36,53 @@ function PlayerBar() {
 
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
+  const [volume, setVolume] = useState(0.8)
+
+  // Sync state with audio element
+  useEffect(() => {
+    const audio = audioRef.current
+    if (!audio) return
+
+    const handleLoadedMetadata = () => {
+      // Priority: 1. Native duration, 2. Song metadata duration
+      const d = audio.duration || currentSong?.duration || 0
+      setDuration(d)
+    }
+
+    const handleTimeUpdate = () => {
+      setCurrentTime(audio.currentTime)
+    }
+
+    const handleEndedInternal = () => {
+      if (repeat) {
+        audio.currentTime = 0
+        audio.play().catch(() => {})
+      } else {
+        next()
+      }
+    }
+
+    const handleError = (e) => {
+      console.error("[Player] Audio Error:", e)
+      // Auto-skip on error if it's a streaming error
+      if (currentSong) {
+        console.warn("[Player] Skipping problematic track...")
+        setTimeout(next, 1000)
+      }
+    }
+
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata)
+    audio.addEventListener('timeupdate', handleTimeUpdate)
+    audio.addEventListener('ended', handleEndedInternal)
+    audio.addEventListener('error', handleError)
+
+    return () => {
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata)
+      audio.removeEventListener('timeupdate', handleTimeUpdate)
+      audio.removeEventListener('ended', handleEndedInternal)
+      audio.removeEventListener('error', handleError)
+    }
+  }, [currentSong, next, repeat])
   const [liked, setLiked] = useState(false)
   const [showComments, setShowComments] = useState(false)
   const [showOptions, setShowOptions] = useState(false)
@@ -219,9 +266,10 @@ function PlayerBar() {
     let rawUrl = currentSong.fileUrl || currentSong.url || ''
     if (!rawUrl) return
 
-    const streamUrl = rawUrl.startsWith('/uploads/')
-      ? rawUrl
-      : `/api/songs/stream-proxy?url=${encodeURIComponent(rawUrl)}`
+    let streamUrl = rawUrl
+    if (!rawUrl.startsWith('/uploads/')) {
+      streamUrl = `/api/songs/stream-proxy?url=${encodeURIComponent(rawUrl)}`
+    }
 
     const targetSrc = window.location.origin + streamUrl
 
@@ -230,6 +278,13 @@ function PlayerBar() {
       audio.pause()
       audio.src = streamUrl
       audio.load()
+      
+      // Auto-play if we are in playing state
+      if (playing) {
+        audio.play().catch(err => {
+          if (err.name !== 'AbortError') console.error("[Player] Initial play error:", err.message)
+        })
+      }
 
       // Record this play event
       const songId = currentSong._id || currentSong.id || 'new'
@@ -262,42 +317,16 @@ function PlayerBar() {
 
   if (!currentSong) return null
 
-  const handleEnded = () => {
-    if (repeat) {
-      if (audioRef.current) {
-        audioRef.current.currentTime = 0;
-        audioRef.current.play();
-      }
-    } else {
-      next();
-    }
-  };
 
   return (
     <div className="fixed bottom-0 left-0 right-0 h-20 md:h-24 bg-[#0a0a0b]/95 backdrop-blur-xl border-t border-white/5 flex items-center px-4 md:px-6 z-[200] shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
       <audio
         ref={audioRef}
-        onTimeUpdate={(e) => setCurrentTime(e.target.currentTime)}
-        onLoadedMetadata={(e) => setDuration(e.target.duration)}
-        onEnded={handleEnded}
         onCanPlay={() => {
           if (playing) {
             audioRef.current.play().catch(err => {
               if (err.name !== 'AbortError') console.error("[Player] onCanPlay Error:", err.message)
             })
-          }
-        }}
-        onError={(e) => {
-          console.error("Audio Playback Error:", e);
-          const audio = audioRef.current
-          if (audio.src.includes('stream-proxy')) {
-            console.warn("[Player] Proxy stream failed. Attempting one-time reload...")
-            const now = Date.now()
-            if (!audio._lastError || now - audio._lastError > 5000) {
-              audio._lastError = now
-              audio.load()
-              if (playing) audio.play().catch(() => {})
-            }
           }
         }}
         onStalled={() => console.warn("Audio playback stalled...")}
@@ -344,8 +373,14 @@ function PlayerBar() {
             <FaStepForward />
           </button>
         </div>
-        <div className="text-[10px] md:text-xs text-gray-500 font-bold tabular-nums tracking-widest hidden sm:block">
-          {formatTime(currentTime)} / {formatTime(duration)}
+        <div className="flex items-center gap-2 tabular-nums hidden sm:flex">
+          <span className="text-[10px] md:text-xs text-white/40 min-w-[30px] text-right font-bold tracking-widest">
+            {formatTime(currentTime)}
+          </span>
+          <span className="text-[10px] md:text-xs text-white/20">/</span>
+          <span className="text-[10px] md:text-xs text-white/40 min-w-[30px] font-bold tracking-widest">
+            {formatTime(duration || currentSong?.duration || 0)}
+          </span>
         </div>
       </div>
 
